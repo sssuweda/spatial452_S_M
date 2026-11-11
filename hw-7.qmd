@@ -1,0 +1,202 @@
+---
+title: "Homework 7 "
+subtitle: "Stat 452"
+author: "Your Name"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    embed-resources: true
+---
+
+
+
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error=TRUE)
+library(tidyverse)
+library(sf) #install.packages('sf')
+library(spdep) #install.packages('spdep')
+```
+
+For this homework, I want you to work on your own so that you can bring your experience and ideas to the group work for the next HW. 
+
+
+## Data Context and Research Question {-}
+
+
+For the spatial mini-project, you will work with data about Hennipen and Ramsey Counties, the larger geo-political districts where Macalester College is located. 
+
+In particular, I've gathered aggregate summaries of the people who live in Hennipen or Ramsey counties, summarized for each census tract based on data from 2020 5-year average American Community Service run by the U.S. Census Bureau. A census tract is a statistical subdivision of a county that aims to have roughly 4,000 inhabitants and they are intended to be fairly homogeneous with respect to demographic and economic conditions. 
+
+I used the `tidycensus` package to gather this data and I've provided example code in the cleaning file for how I collected the data. 
+
+Make sure to look at a Google Map of Hennipen and Ramsey Counties, so you can familiarize yourself with the geography, <https://goo.gl/maps/m9pXVtjisoZHTmFL7>.
+
+In particular, I want you to **focus on home values for this mini-project**.
+
+### Data Context {-}
+
+In order to analyze the home values of today, you need a bit of context of the history of real estate in Hennepin and Ramsey County. Below I have listed a variety of resources. You don't need to limit yourself to these resources and you don't need to read all of these resources. Feel free to work on this after class. 
+
+
+History of Hennepin and Ramsey Counties
+
+- <https://tile.loc.gov/storage-services/service/gdc/lhbum/0866e/0866e_0456_0484.pdf>
+- <https://www.ramseycountymn.gov/your-government/about-ramsey-county/history-ramsey-county>
+- <https://www.stpaul.gov/sites/default/files/2022-08/2001%20Context%20Study%20-%20Real%20Estate%20Development.pdf>
+- <https://mspmag.com/arts-and-culture/history-real-estate-mn/>
+- <https://www.hennepincounty.gov/government/about/county-overview/history-county>
+
+Redlining in Hennepin and Ramsey Counties
+
+- <https://libguides.umn.edu/c.php?g=1046973>
+- <https://mappingprejudice.umn.edu/>
+- <https://welcomingthedearneighbor.org/maps-data/>
+- <https://interfaithaction.org/wp-content/uploads/2019/10/Redlining.pdf>
+- <https://www.youtube.com/watch?v=I9P7VAKiekU>
+- <https://streets.mn/2016/12/14/exclusionary-zoning-the-new-redlining/>
+- <https://storymaps.arcgis.com/stories/c2721b6ea0124689a9197d26fdfd6890>
+
+
+1. Write one paragraph that introduces and summarizes the history of real estate in Hennepin and Ramsey County for the purposes of laying ground work for your future data analysis. Complete this after class. 
+
+ANSWER:
+
+[Partner A]:
+
+
+
+
+[Partner B]:
+
+
+### Develop Research Question {-}
+
+2. Load in the data set and look at the `tc_data` and the `CodeBook`. I've provided you a small number of variables to consider. 
+
+- Any variable that does not include median or average in the description is a count or proportion; 
+- The E at the end of variables indicates estimate. 
+
+Develop a research question based on the available characteristics.  
+
+ANSWER:
+
+```{r}
+library(tidyverse)
+library(sf)
+load('SpatialData.RData')
+head(tc_data)
+# View(CodeBook) to see original descriptions from tidycensus
+```
+
+## Visualizations {-}
+
+3. Create a visualization, first mapping out the census tract polygon geometries with `geom_sf()` and filling the polygons by the outcome, `HouseValueE`. Write a brief 1-2 sentence summary of what you learn.
+
+ANSWER:
+
+```{r}
+
+```
+
+
+4. Create visualizations that explore the relationship between explanatory variables and the outcome of interest, `HouseValueE` (try explore with and without a log transformation), ignoring the spatial component. Write a brief 3-5 sentence summary of what you learn.
+
+ANSWER:
+
+```{r}
+
+```
+
+
+
+## Neighborhood Structure {-}
+
+5. Create a neighborhood structure of the census tract boundaries. Start with using the Queen definition of neighbors. Visualize that network on top of the map of spatial polygons. Consider the advantages and disadvantages of defining neighbors in this way. Write a few sentences about those pros and cons. 
+
+ANSWER:
+
+```{r}
+library(sp)
+Queen <- poly2nb(tc_data, queen = TRUE)
+
+ramsey_centroids <- st_centroid(st_geometry(tc_data), of_largest_polygon = TRUE)
+nb_Q_net <- nb2lines(nb = Queen, coords = ramsey_centroids, as_sf = TRUE)
+
+
+#Visualize network on the map (unfilled)
+
+
+```
+
+6. Based on your experience living in St. Paul, do you believe there are any barriers, physical or otherwise, that would lead to two "neighboring" census tracts to be more different than you'd expect two census tracts that share a boundary? Rely on your own experience to consider this.
+
+ANSWER:
+
+
+
+
+## OLS Model {-}
+
+7. Fit a linear model with `lm()` to address the research question above and then map the residuals by coloring the spatial polygons by the residuals. Comment on what you learn.
+
+ANSWER:
+
+
+```{r}
+
+lm_mod <- lm(? ~ ?, data = tc_data)
+
+tc_data$lm_resid <- resid(lm_mod)
+
+tc_data %>% ggplot() +
+  geom_sf(aes(fill = lm_resid)) +
+  labs(fill = 'Residuals') + 
+  scale_fill_gradient2(mid = "white", high = "red", low = "blue") + theme_classic()
+```
+
+## Spatial Correlation {-}
+
+8. Let's calculate and visualize the spatial correlation of the residuals using Global and Local Moran's I. Comment on the strength of spatial correlation based on the Global Moran's I and whether it is discernibly different from 0 (independence) and patterns in the Local Moran's I.
+
+ANSWER:
+
+```{r}
+W <- nb2listw(Queen, style = "W") #style = 'W' gives row-normalized weights
+mp <- spdep::moran.plot(tc_data$lm_resid, W, plot=FALSE)
+
+ggplot(mp, aes(x = x, y = wx)) + 
+  geom_point() + 
+  geom_smooth(method="lm" , se = FALSE) + 
+  geom_hline(yintercept = mean(mp$wx), lty=2) + 
+  geom_vline(xintercept = mean(mp$x), lty=2) + theme_classic() + 
+  labs(x = 'Residuals',y = "Average Residual of Neighbors", title = "Spatial Autocorrelation of Residuals")
+
+local_moran <- spdep::localmoran(tc_data$lm_resid, W)
+
+tc_data %>% bind_cols(local_moran) %>% 
+  ggplot() +
+  geom_sf(aes(fill = Ii)) +
+  labs(fill = 'Local Moran I') + 
+  scale_fill_gradient2(mid = "white", high = "red", low = "blue") + theme_classic()
+
+tc_data %>% bind_cols(local_moran) %>% bind_cols(attr(local_moran,'quadr')) %>%
+  mutate(mean = if_else(`Pr(z != E(Ii))` < 0.005, mean,NA)) %>%
+  ggplot() +
+  geom_sf(aes(fill = mean)) +
+  labs(fill = 'Local Moran I Hotspots') + 
+  scale_fill_manual(values=c('red'),na.value = 'lightgrey' ) + theme_classic()
+
+
+W <- nb2listw(Queen, style = "B") #style = 'B' gives binary weights
+spdep::moran.test(tc_data$lm_resid, W, alternative = "two.sided", randomisation = TRUE)  # Global Moran's I, using randomization test
+
+```
+## Done! {-}
+
+- Render your homework.
+- Make sure the html file looks like you want it.
+- Submit your assignment as instructed.
+
+
